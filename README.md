@@ -14,14 +14,26 @@ npm run dev
 
 ## データの保存について
 
-このアプリは元々 Claude Artifacts の `window.storage` という保存機能を使っています。
-`src/storageShim.js` が、それをブラウザの `localStorage` で代用する簡易実装です。
+このアプリは `window.storage` という保存機能を使っています。
+Supabase の環境変数を設定すると共有データを Supabase に保存し、未設定の場合は
+ブラウザの `localStorage` を使います。
 
-- Claude Artifacts 上での「SHARED（全員が同じデータを見る）」という挙動は、
-  このスタンドアロン版では再現されません（localStorage はブラウザ単位のため）。
-- 複数人・複数端末でデータを共有したい場合は、`storageShim.js` の
-  `get` / `set` / `delete` / `list` を、実際のバックエンド（DB + API）を呼ぶ
-  実装に差し替えてください。呼び出し側（`src/App.jsx`）は変更不要です。
+### Supabase の設定
+
+1. Supabase でプロジェクトを作成します。
+2. SQL Editor で `supabase/schema.sql` を実行します。
+3. `.env.example` を `.env.local` にコピーし、Supabase の URL と anon key を設定します。
+4. GitHub Pages で Supabase を使う場合は、リポジトリの Settings > Secrets and variables > Actions に
+  `SUPABASE_URL` と `SUPABASE_ANON_KEY` を登録します。
+
+```env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+`.env.local` は Git にコミットしないでください。Supabase の anon key はブラウザへ公開される前提のキーですが、
+データの保護は SQL の RLS ポリシーで行います。現在のスキーマは匿名ユーザーが共有データを読み書きできる設定です。
+利用者ごとの権限管理が必要になった場合は、Supabase Auth とユーザー単位の RLS に切り替えてください。
 
 ## Git で管理する
 
@@ -56,9 +68,11 @@ npm run build
 ├── vite.config.js
 ├── tailwind.config.js
 ├── postcss.config.js
+├── supabase/
+│   └── schema.sql        # Supabase のテーブルと RLS ポリシー
 └── src/
     ├── main.jsx        # エントリーポイント
     ├── App.jsx         # アプリ本体（元のArtifactの中身）
-    ├── storageShim.js  # window.storage の localStorage 代替実装
+  ├── storageShim.js  # Supabase / localStorage の保存層
     └── index.css       # Tailwindの読み込み
 ```
