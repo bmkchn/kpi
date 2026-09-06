@@ -4295,6 +4295,8 @@ const applyMaterialUsage = (materials, oldUsage = [], newUsage = []) => {
   });
 };
 
+const materialUsageForPo = (po) => (po?.excludeMaterialUsage ? [] : (po?.materials ?? []));
+
 /** 発注1件に登録された資材の原価合計 */
 const poMaterialCost = (po) => (po.materials ?? []).reduce((s2, m) => s2 + num(m.qty) * num(m.unitCost), 0);
 
@@ -4394,7 +4396,7 @@ const aggregateMaterialUsage = (purchaseOrders, { includeCompleted = false } = {
   (purchaseOrders ?? []).forEach((po) => {
     if (po.status === 'canceled') return;
     if (!includeCompleted && (poStatus(po) === 'done' || poStatus(po) === 'completed')) return;
-    (po.materials ?? []).forEach((m) => {
+    materialUsageForPo(po).forEach((m) => {
       if (!m.material_id || num(m.qty) <= 0) return;
       const cur = usage.get(m.material_id) ?? { qty: 0, poIds: new Set() };
       cur.qty += num(m.qty);
@@ -4654,6 +4656,12 @@ function PoModal({ open, po, products, categories, specs, materials, onClose, on
               <p className="mt-1 text-[11px] text-amber-600">下の「資材」に何も登録されていないため、まだ0円です。</p>
             )}
           </Field>
+          <label className="flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs text-amber-900 sm:col-span-3">
+            <input type="checkbox" className="rounded border-amber-300 text-amber-600"
+              checked={form.excludeMaterialUsage === true}
+              onChange={(e) => set('excludeMaterialUsage', e.target.checked)} />
+            この発注では資材を使用しない（資材在庫から差し引かない）
+          </label>
         </div>
 
         {/* 進捗 */}
@@ -6594,7 +6602,7 @@ function AppInner() {
         onSave={(form) => {
           const list = data.purchaseOrders ?? [];
           const oldPo = list.find((x) => x.id === form.id);
-          const materials = applyMaterialUsage(data.materials ?? [], oldPo?.materials ?? [], form.materials ?? []);
+          const materials = applyMaterialUsage(data.materials ?? [], materialUsageForPo(oldPo), materialUsageForPo(form));
           persist({
             ...data,
             materials,
@@ -6606,7 +6614,7 @@ function AppInner() {
         }}
         onDelete={(id) => {
           const oldPo = (data.purchaseOrders ?? []).find((x) => x.id === id);
-          const materials = applyMaterialUsage(data.materials ?? [], oldPo?.materials ?? [], []);
+          const materials = applyMaterialUsage(data.materials ?? [], materialUsageForPo(oldPo), []);
           persist({ ...data, materials, purchaseOrders: (data.purchaseOrders ?? []).filter((x) => x.id !== id) });
           setPoModal(false); setEditingPo(null);
         }} />
